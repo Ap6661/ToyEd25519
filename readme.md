@@ -117,8 +117,9 @@ geequal b c = r
 Doing the math to generate points is extremely slow, and you only need to
 calculate all the points once. These points are stored in
 [Eddata.hs](./Eddata.hs). These points only come into play in the chooseT
-function. chooseT takes a point on a coordinate table and then returned a
-transformed point.
+function. chooseT takes a point on a coordinate table and then returns a
+transformed point. chooseT is used in the base point scalar multiplication
+(\[n\]X : X added to itself n times). 
 
 
 ```haskell
