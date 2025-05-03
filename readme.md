@@ -3,6 +3,10 @@
 > [!CAUTION]
 > This project was a learning experience and **should not be used for ANY reason than fun.** 
 
+https://github.com/user-attachments/assets/a1f87b19-8cc2-4cbb-8e9d-1cd8dd4ab868
+
+
+
 # What?
 
 ## What is this project?
@@ -177,3 +181,4 @@ sign m sk = (\r -> (r ++) <$> sout) =<< bigR
 - https://datatracker.ietf.org/doc/html/rfc7748
 - https://github.com/floodyberry/supercop/blob/master/crypto_sign/ed25519
 - https://github.com/openssh/openssh-portable/blob/master/ed25519.c
+- https://cyphr.me/ed25519_tool/ed.html
