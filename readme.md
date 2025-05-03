@@ -1,7 +1,7 @@
 # Toy Ed25519 Signing Tool
 
 > [!CAUTION]
-> This project was a learning experience and **should not be used for ANY reason than fun.** 
+> This project was a learning experience and **should not be used for ANY reason other than fun.** 
 
 https://github.com/user-attachments/assets/a1f87b19-8cc2-4cbb-8e9d-1cd8dd4ab868
 
