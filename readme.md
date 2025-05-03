@@ -46,39 +46,6 @@ important thing is that it is as correct as it needs to be to work.
 
 # The Nitty-gritty
 
-Here is the main signing function. It takes a message and a secret key (Private
-Key || Public Key).
-
-```haskell
--- Message + SecretKey
-sign m sk = (\r -> (r ++) <$> sout) =<< bigR
-  where
-    (fsk, prefix) = BS.splitAt 32 sk
-    h =  SHA512.hashByteString fsk
-
-    -- az: 32-byte scalar a, 32-byte randomizer z 
-    az =  prunedigest . BS.unpack . SHA512.hashToBinary <$> h
-    azt = Prelude.splitAt 32 <$> az
-    a = fst <$> azt
-    z = snd <$> azt
-    bigA = generatePublicKey <$> h
-
-    -- Nonce: r
-    r = sc25519from64Bytes . BS.unpack . SHA512.hashToBinary <$>
-        (SHA512.hashByteString . BS.pack . (++ m) =<< z)
-    bigR = ge25519Pack . ge25519ScalarbaseMult <$> r
-
-    -- h(RAm)
-    ram = (\m -> (\a -> (\rr -> rr ++ a ++ m) <$> bigR) =<< bigA) m
-    hRAm = SHA512.hashByteString . BS.pack =<< ram
-    k = sc25519from64Bytes . BS.unpack . SHA512.hashToBinary <$> hRAm
-
-    -- S = (r + k * s) mod L 
-    ks = (\k -> sc25519Mul k <$> (sc25519from32Bytes <$> a)) =<< k
-    bigS = (\r -> sc25519Add r <$> ks) =<< r
-    sout = sc25519to32Bytes <$> bigS
-```
-
 ```mermaid 
 flowchart TD
     subgraph "Input"
@@ -121,6 +88,84 @@ flowchart TD
     style PK fill:#ff9999,color:#000000
     style M fill:#99ff99,color:#000000
     style Sig fill:#ccffcc,color:#000000
+```
+
+One interesting thing that I noticed while diving into supercop. Everything
+needs to be constant time. If it isn't done in a way that is O(1) then the
+algorithms are susceptible to timing attacks. For this project I mostly ignored
+this requirement to focus on the big picture rather than the deep inner workings
+of Haskell and it's data structures.
+
+```haskell
+-- This is just ==
+geequal b c = r
+  where
+    r :: Word32
+    r = (fromIntegral (ub `xor` uc) - 1) `shiftR` 31  -- set matching bits to 0
+    -- If b xor c == 0 then b == c. 
+    -- 0 - 1 => 1111...1
+    -- 1... >> 31 => 1
+    -- anything else >> 31 => 0
+
+    -- Cast b and c into 8 bit uints
+    ub :: Word8
+    ub = fromIntegral b
+    uc :: Word8
+    uc = fromIntegral c
+```
+
+Doing the math to generate points is extremely slow, and you only need to
+calculate all the points once. These points are stored in
+[Eddata.hs](./Eddata.hs). These points only come into play in the chooseT
+function. chooseT takes a point on a coordinate table and then returned a
+transformed point.
+
+
+```haskell
+chooseT pos b = Ge25519Aff { x = xx, y = y t }
+  where
+  (Fe25519 xx) = cmov tx (fe25519Neg tx) (negative b)
+  tx = Fe25519 $ x t
+  t :: Ge25519Aff
+  t
+    | 1 == geequal b 1 || 1 == geequal b (-1) = Eddata.base_mul_affine !! (5 * pos + 1)
+    | 1 == geequal b 2 || 1 == geequal b (-2) = Eddata.base_mul_affine !! (5 * pos + 2)
+    | 1 == geequal b 3 || 1 == geequal b (-3) = Eddata.base_mul_affine !! (5 * pos + 3)
+    | 1 == geequal b (-4) = Eddata.base_mul_affine !! (5 * pos + 4)
+    | otherwise = Eddata.base_mul_affine !! (5 * pos + 0)
+```
+
+Here is the main signing function. It takes a message
+and a secret key (Private Key || Public Key).
+
+```haskell
+-- Message + SecretKey
+sign m sk = (\r -> (r ++) <$> sout) =<< bigR
+  where
+    (fsk, prefix) = BS.splitAt 32 sk
+    h =  SHA512.hashByteString fsk
+
+    -- az: 32-byte scalar a, 32-byte randomizer z 
+    az =  prunedigest . BS.unpack . SHA512.hashToBinary <$> h
+    azt = Prelude.splitAt 32 <$> az
+    a = fst <$> azt
+    z = snd <$> azt
+    bigA = generatePublicKey <$> h
+
+    -- Nonce: r
+    r = sc25519from64Bytes . BS.unpack . SHA512.hashToBinary <$>
+        (SHA512.hashByteString . BS.pack . (++ m) =<< z)
+    bigR = ge25519Pack . ge25519ScalarbaseMult <$> r
+
+    -- h(RAm)
+    ram = (\m -> (\a -> (\rr -> rr ++ a ++ m) <$> bigR) =<< bigA) m
+    hRAm = SHA512.hashByteString . BS.pack =<< ram
+    k = sc25519from64Bytes . BS.unpack . SHA512.hashToBinary <$> hRAm
+
+    -- S = (r + k * s) mod L 
+    ks = (\k -> sc25519Mul k <$> (sc25519from32Bytes <$> a)) =<< k
+    bigS = (\r -> sc25519Add r <$> ks) =<< r
+    sout = sc25519to32Bytes <$> bigS
 ```
 
 # Resources I used
